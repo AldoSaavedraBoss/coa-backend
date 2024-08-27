@@ -1,5 +1,6 @@
 const jose = require('node-jose')
 const axios = require('axios')
+const firebaseConfig = require('./firebase.config')
 
 const CERT_URL =
   'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com'
@@ -16,50 +17,44 @@ async function getPublicKeys() {
 const verifyToken = async token => {
   try {
     const publicKeys = await getPublicKeys()
-    const decodedHeader = jwt.decode(token, { complete: true }).header // Verifica el token con Firebase Admin SDK
 
-    if (decodedHeader.alg !== 'RS256') {
-      throw new Error('El algoritmo de firma no es RS256')
-    }
+    const header = JSON.parse(Buffer.from(token.split('.')[0], 'base64').toString())
+    const key = publicKeys[header.kid]
 
-    const kid = decodedHeader.kid
-    const publicKey = publicKeys[kid]
+    if(!key) throw new Error('Token invalido')
 
-    if (!publicKey) {
-      throw new Error('Clave pública no encontrada')
-    }
+    const keyStore = jose.JWK.createKeyStore()
+    const jwk = await keyStore.add(key, 'pem')
 
-    const key = await jose.JWK.asKey(publicKey, 'pem')
+    const result = await jose.JWS.createVerify(jwk).verify(token)
 
-    // Verifica el token usando la clave pública
-    const decodedToken = jwt.verify(token, key.toPEM(), {
-      algorithms: ['RS256'],
-      audience: FIREBASE_PROJECT_ID,
-      issuer: `https://securetoken.google.com/${FIREBASE_PROJECT_ID}`,
-    })
+    const claims = JSON.parse(result.payload.toString())
 
-    return decodedToken
-    next()
+    const projectId = firebaseConfig.projectId
+    if(claims.iss !== `https://securetoken.google.com/${projectId}` || claims.aud !== projectId) throw new Error('Token no valido')
+
+    const now = Math.floor(new Date().getTime() / 1000)
+    if(claims.exp < now) throw new Error('Token expirado');
+    
+    return claims
+
   } catch (error) {
-    return res.status(403).json({ message: 'Token inválido o expirado', error })
+    console.error('Error al verificar el token', error)
+    return null
   }
 }
 
-const authenticateToken = async (req, res, next) => {
-  const authHeader = req.headers['authorization']
-  const token = authHeader && authHeader.split(' ')[1] // Suponiendo que el token está en formato "Bearer <token>"
+const verifyTokenMiddleware  = async (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1]
 
-  if (!token) {
-    return res.status(401).json({ message: 'Token no proporcionado' })
-  }
+  if(!token) return res.status(401).json({message: 'Token no proporcionado'})
 
-  try {
-    const decodedToken = await verifyToken(token)
-    req.user = decodedToken // Puedes agregar la información del usuario a la solicitud
-    next()
-  } catch (error) {
-    res.status(403).json({ message: `Token inválido: ${error.message}` })
-  }
+  const decodedToken = await verifyToken(token)
+
+  if(!decodedToken) res.status(403).json({message: 'Token no valido'})
+
+  req.user = decodedToken
+  next()
 }
 
-module.exports = authenticateToken
+module.exports = verifyTokenMiddleware

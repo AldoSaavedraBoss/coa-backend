@@ -17,7 +17,7 @@ const {
   addDoc
 } = require('firebase/firestore')
 // const { initializeFireabseApp, handleLogin, registerUser, getGardensByUserId } = require('./firebase')
-const authenticateToken = require('./auth')
+const verifyTokenMiddleware = require('./auth')
 
 const cors = require('cors')
 const morgan = require('morgan')
@@ -47,7 +47,9 @@ app.use(express.urlencoded({ extended: false }))
 
 app.set('port', process.env.PORT || 3000)
 
-app.get('/verify-token', authenticateToken)
+app.get('/verify-token', verifyTokenMiddleware, (req, res) => {
+  res.status(200).json({message: 'Accesos concedido'})
+})
 
 app.get('/ping', (req, res) => {
   res.json({ ping: `${app.get('port')}` })
