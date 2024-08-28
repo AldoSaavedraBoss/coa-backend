@@ -14,7 +14,8 @@ const {
   getDocs,
   setDoc,
   where,
-  addDoc
+  addDoc,
+  updateDoc
 } = require('firebase/firestore')
 // const { initializeFireabseApp, handleLogin, registerUser, getGardensByUserId } = require('./firebase')
 const verifyTokenMiddleware = require('./auth')
@@ -220,26 +221,26 @@ app.get('/tech/clients/:id', async (req, res) => {
 
 app.post('/tech/reportes', async (req, res) => {
   try {
-    const newReport = req.body
-    if(!newReport.agricultor_id || !newReport.huerto_id || !newReport.etapa_fenologica){
+    const form = req.body
+    if(!form.agricultor_id || !form.huerto_id || !form.etapa_fenologica){
       res.status(400).json({error: 'Faltan datos'})
     }
 
     const docRef =  await addDoc(collection(firestoreDB, 'reportes'), {
-      agricultor_id: newReport.agricultor_id,
-      enfermedades: newReport.enfermedades,
-      estado_general: newReport.estado_general,
-      etapa_fenologica: newReport.etapa_fenologica,
-      fecha: newReport.fecha,
-      huerto_id: newReport.huerto_id,
-      observaciones: newReport.observaciones,
-      plagas: newReport.plagas,
-      recomendaciones: newReport.recomendaciones,
-      nombre: newReport.nombre,
-      nombre_huerto: newReport.nombre_huerto
+      agricultor_id: form.agricultor_id,
+      enfermedades: form.enfermedades,
+      estado_general: form.estado_general,
+      etapa_fenologica: form.etapa_fenologica,
+      fecha: form.fecha,
+      huerto_id: form.huerto_id,
+      observaciones: form.observaciones,
+      plagas: form.plagas,
+      recomendaciones: form.recomendaciones,
+      nombre: form.nombre,
+      nombre_huerto: form.nombre_huerto
   })
 
-  res.status(201).json({id: docRef.id, data: newReport})
+  res.status(201).json({id: docRef.id, data: form})
   } catch (error) {
     console.error('Error al crear reporte', error)
     res.status(500).json({error: 'Error al crear reporte'})
@@ -263,6 +264,37 @@ app.get('/tech/reportes/:id', async (req, res) => {
     res.status(200).json(reports)
   } catch (error) {
     res.status(404).json({error: error})
+  }
+})
+
+//editar reporte
+app.put('/tech/reportes/:id', async (req, res) => {
+  // id del reporte
+  const id = req.params.id
+  const form = req.body
+  const newObj = {
+      agricultor_id: form.agricultor_id,
+      enfermedades: form.enfermedades,
+      estado_general: form.estado_general,
+      etapa_fenologica: form.etapa_fenologica,
+      fecha: form.fecha,
+      huerto_id: form.huerto_id,
+      observaciones: form.observaciones,
+      plagas: form.plagas,
+      recomendaciones: form.recomendaciones,
+      nombre: form.nombre,
+      nombre_huerto: form.nombre_huerto
+  }
+
+  try {
+    const reporteRef = doc(firestoreDB, 'reportes', id)
+
+    await updateDoc(reporteRef, newObj)
+
+    res.status(200).json({message: 'Reporte actualizado exitosamente'})
+  } catch (error) {
+    console.error('Error al actualizar el reporte', error)
+    res.status(500).json({message: 'Error al actualizar el reporte', error})
   }
 })
 
