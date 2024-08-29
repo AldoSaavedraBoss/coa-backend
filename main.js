@@ -111,8 +111,9 @@ app.post('/login', async (req, res) => {
     res.status(200).json(obj)
   } catch (error) {
     console.error('error al iniciar sesion', error)
-    res.status(404).json({ error: error })
+    res.status(404).json({message: 'Huerto no encontrado'}).json({ error: error })
   }
+  
 })
 
 app.get('/gardens/:id', async (req, res) => {
@@ -132,8 +133,9 @@ app.get('/gardens/:id', async (req, res) => {
     res.status(200).json(gardens)
   } catch (error) {
     console.log('error al traer los huertos', error)
-    res.status(404).json({ error: error.message })
+    res.status(404).json({message: 'Huerto no encontrado'}).json({ error: error.message })
   }
+
 })
 
 app.get('/garden/:id')
@@ -168,7 +170,7 @@ app.get('/client/:id', async (req, res) => {
     res.status(200).json(obj)
   } catch (error) {
     console.log('error al traer al cliente', error)
-    res.status(404).json({ error: error.message })
+    res.status(404).json({message: 'Huerto no encontrado'}).json({ error: error.message })
   }
 })
 
@@ -215,7 +217,7 @@ app.get('/tech/clients/:id', async (req, res) => {
   console.log(clientes)
   res.status(200).json(clientes)
   } catch (error) {
-    res.status(404).json({error: error})
+    res.status(404).json({message: 'Huerto no encontrado'}).json({error: error})
   }
 })
 
@@ -263,8 +265,10 @@ app.get('/tech/reportes/:id', async (req, res) => {
 
     res.status(200).json(reports)
   } catch (error) {
-    res.status(404).json({error: error})
+    res.status(404).json({message: 'Huerto no encontrado'}).json({error: error})
   }
+  
+  aw
 })
 
 //editar reporte
@@ -295,6 +299,124 @@ app.put('/tech/reportes/:id', async (req, res) => {
   } catch (error) {
     console.error('Error al actualizar el reporte', error)
     res.status(500).json({message: 'Error al actualizar el reporte', error})
+  }
+})
+
+app.post('/tech/sugerencias', async (req, res) => {
+  const {gardenId, newSuggestions} = req.body
+
+  if(newSuggestions.length === 0) return res.status(400).json({message: 'Falta sugerencia'})
+
+  try {
+    const gardenRef = doc(firestoreDB, 'huertos', gardenId)
+
+    const snap = await getDoc(gardenRef)
+
+    if(!snap.exists()) res.status(404).json({message: 'Huerto no encontrado'})
+    
+    const data = snap.data()
+    const currentSugegstions = data.recomendaciones || []
+
+    const updateSuggestions = currentSugegstions.concat(newSuggestions)
+
+    await updateDoc(gardenRef, {recomendaciones: updateSuggestions})
+
+    res.status(200).json({message: 'Sugerencias añadidas correctamente', suggestions: updateSuggestions})
+  } catch (error) {
+    console.error('Error agregando sugerencias', error)
+    res.status(500).json({message: 'Error agregando sugerencias'})
+  }
+})
+
+app.delete('/tech/sugerencias', async (req, res) => {
+  const {gardenId, suggestion} = req.query
+  console.log('entro',suggestion)
+  if(!suggestion) res.status(400).json({message: 'Falta sugerencia'})
+  try {
+    const gardenRef = doc(firestoreDB, 'huertos', gardenId)
+    const snap = await getDoc(gardenRef)
+
+    if(!snap.exists()) res.status(404).json({message: 'Huerto no encontrado'})
+    
+    const data = snap.data()
+    const currentSuggestions = data.recomendaciones || []
+
+    const updatedSuggestions = currentSuggestions.filter(sugg => sugg !== suggestion)
+
+    await updateDoc(gardenRef, {recomendaciones: updatedSuggestions})
+
+    res.status(200).json({message: 'La sugerencia se elimino correctamente', suggestions: updatedSuggestions})
+  } catch (error) {
+    console.error('Error eliminando la recomendacion:', error);
+    res.status(500).json({message: 'Error eliminando la recomendacion'});
+  }
+})
+
+app.post('/tech/caracteristicas', async (req, res) => {
+  const {gardenId, name, value} = req.body
+
+  try {
+    const gardenRef = doc(firestoreDB, 'huertos', gardenId)
+
+    const snap = await getDoc(gardenRef)
+
+    if(!snap.exists()) res.status(404).json({message: 'Huerto no encontrado'})
+    
+    const data = snap.data()
+    const currentFeatures = data.caracteristicas || {}
+
+    const updatedFeatures = {
+      ...currentFeatures,
+      [name]: value
+    };
+
+    await updateDoc(gardenRef, {caracteristicas: updatedFeatures})
+
+    res.status(200).json({message: 'Caracteristicas añadidas correctamente', features: updatedFeatures})
+  } catch (error) {
+    console.error('Error agregando caracteristicas', error)
+    res.status(500).json({message: 'Error agregando caracteristicas'})
+  }
+})
+
+app.delete('/tech/caracteristicas', async (req, res) => {
+  const {gardenId, name} = req.body
+  try {
+    const gardenRef = doc(firestoreDB, 'huertos', gardenId)
+    const snap = await getDoc(gardenRef)
+
+    if(!snap.exists()) res.status(404).json({message: 'Huerto no encontrado'})
+    
+    const data = snap.data()
+    const currentFeatures = data.caracteristicas || []
+
+    if(!currentFeatures.hasOwnProperty(name)) res.status(404).json({message: 'Caracteristica no encontrada'})
+
+    delete currentFeatures[name]
+
+    await updateDoc(gardenRef, {caracteristicas: currentFeatures})
+
+    res.status(200).json({message: 'La caracteristica se elimino correctamente'})
+  } catch (error) {
+    console.error('Error eliminando la caracteristica:', error);
+    res.status(500).json({message: 'Error eliminando la caracteristica'});
+  }
+})
+app.put('/tech/caracteristicas', async (req, res) => {
+  // id del reporte
+  const {gardenId, newFeatures} = req.body
+
+  try {
+    const huertosRef = doc(firestoreDB, 'huertos', gardenId)
+
+    await updateDoc(huertosRef, {
+      caracteristicas: newFeatures
+    })
+
+    res.status(200).json({message: 'Caracteristicas del huerto actualizadas exitosamente', features: newFeatures})
+  } catch (error) {
+    console.error('Error al actualizar las características', error);
+    res.status(500).json({ message: 'Error al actualizar las características', error })
   }
 })
 
