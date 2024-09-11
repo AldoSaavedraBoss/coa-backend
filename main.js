@@ -417,12 +417,10 @@ app.put('/tech/caracteristicas', async (req, res) => {
       caracteristicas: newFeatures,
     })
 
-    res
-      .status(200)
-      .json({
-        message: 'Caracteristicas del huerto actualizadas exitosamente',
-        features: newFeatures,
-      })
+    res.status(200).json({
+      message: 'Caracteristicas del huerto actualizadas exitosamente',
+      features: newFeatures,
+    })
   } catch (error) {
     console.error('Error al actualizar las características', error)
     res.status(500).json({ message: 'Error al actualizar las características', error })
@@ -453,12 +451,10 @@ app.post('/tech/fertilizantes', async (req, res) => {
 
     await updateDoc(gardenRef, { historial_fertilizante: updatedFertilizers })
 
-    res
-      .status(200)
-      .json({
-        message: 'Fertilizante añadido correctamente',
-        historial_fertilizante: updatedFertilizers,
-      })
+    res.status(200).json({
+      message: 'Fertilizante añadido correctamente',
+      historial_fertilizante: updatedFertilizers,
+    })
   } catch (error) {
     console.error('Error agregando fertilizante', error)
     res.status(500).json({ message: 'Error agregando fertilizante' })
@@ -497,23 +493,30 @@ app.get('/tech/calendario/:tecnico', async (req, res) => {
   }
 })
 
-// const data = [
-//   {
-//     name: 'susana rojas',
-//     historial_estados_huertos: [
-//       { estado: 'todo bien', fecha: '2024-05-02T06:10:00.000Z' },
-//       { estado: 'todo bien', fecha: '2024-04-23T06:00:00.000Z' },
-//       { estado: 'todo bien', fecha: '2024-05-20T06:00:00.000Z' },
-//     ],
-//   },
-// {
-//   name: 'aldo rojas',
-//   historial_estados_huertos: [
-//     { estado: 'mal estado', fecha: '2024-01-05T06:00:00.000Z' },
-//     { estado: 'todo bien', fecha: '2024-06-10T06:00:00.000Z' },
-//   ],
-// },
-// ];
+app.post('/tech/register/client', async (req, res) => {
+  const request = req.body
+
+  if (!request.name) return res.status(400).json({ message: 'Falta nombre' })
+  if (!request.apellido) return res.status(400).json({ message: 'Falta apellido' })
+  if (!request.email) return res.status(400).json({ message: 'Falta email' })
+  if (!request.tecnicoId) return res.status(400).json({ message: 'Falta id del tecnico' })
+
+  try {
+    const userRef = await addDoc(collection(firestoreDB, 'usuarios'), {
+      apellido: request.lastname,
+      creacion: new Date(),
+      email: request.email,
+      nombre: request.name,
+      rol: 'cliente',
+      tecnico_id: request.tecnico_id,
+    })
+
+    res.status(200).json({ id: userRef.id, data: request })
+  } catch (error) {
+    console.error('Error al crear cliente', error)
+    res.status(500).json({ message: 'Error al crear cliente', error })
+  }
+})
 
 const getWeekForDate = (date, weeks) => {
   const parsedDate = new Date(date)
@@ -527,7 +530,6 @@ const getWeekForDate = (date, weeks) => {
   return null
 }
 
-app.listen(app.get('port'))
 const createClientObjects = data => {
   return data.map(client => {
     // Crear un objeto vacío para los meses
@@ -560,3 +562,5 @@ const createClientObjects = data => {
     }
   })
 }
+
+app.listen(app.get('port'))
