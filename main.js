@@ -19,7 +19,7 @@ const {
 } = require('firebase/firestore')
 // const { initializeFireabseApp, handleLogin, registerUser, getGardensByUserId } = require('./firebase')
 const verifyTokenMiddleware = require('./auth')
-const { weeksLeapYearStartToEnd } = require('./calendar')
+const { weeksLeapYearStartToEnd, weeksNonLeapYearStartToEnd } = require('./calendar')
 
 const cors = require('cors')
 const morgan = require('morgan')
@@ -531,18 +531,21 @@ const getWeekForDate = (date, weeks) => {
 }
 
 const createClientObjects = data => {
+  const year = new Date().getFullYear
+  const objSelected = year % 4 === 0 ? weeksLeapYearStartToEnd : weeksNonLeapYearStartToEnd
+
   return data.map(client => {
     // Crear un objeto vacío para los meses
-    const meses = Object.keys(weeksLeapYearStartToEnd).map(month => {
+    const meses = Object.keys(objSelected).map(month => {
       // Crear un array con las semanas del mes inicializadas a `null`
-      const monthWeeks = Array(weeksLeapYearStartToEnd[month].length).fill(null)
+      const monthWeeks = Array(objSelected[month].length).fill(null)
 
       // Iterar por cada estado del historial del cliente
       client.historial_estados_huertos.forEach(entry => {
         // Iterar por las semanas del mes actual
-        for (let i = 0; i < weeksLeapYearStartToEnd[month].length; i++) {
-          const week = weeksLeapYearStartToEnd[month][i]
-          const weekRange = getWeekForDate(entry.fecha, weeksLeapYearStartToEnd[month])
+        for (let i = 0; i < objSelected[month].length; i++) {
+          const week = objSelected[month][i]
+          const weekRange = getWeekForDate(entry.fecha, objSelected[month])
 
           // Si la fecha corresponde a esta semana, guardar el estado y romper el ciclo
           if (weekRange && entry.fecha >= week.start && entry.fecha <= week.end) {
