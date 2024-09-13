@@ -212,10 +212,20 @@ app.get('/tech/clients/:id', async (req, res) => {
       id: doc.id,
       ...doc.data(),
     }))
+
+    clientes.sort((a, b) => {
+      const nameA = a.nombre.toUpperCase()
+      const nameB = b.nombre.toUpperCase()
+
+      if(nameA > nameB ) return 1
+      if(nameA < nameB ) return -1
+      return 0
+    })
+
     console.log(clientes)
     res.status(200).json(clientes)
   } catch (error) {
-    res.status(404).json({ message: 'Huerto no encontrado' }).json({ error: error })
+    res.status(404).json({ message: `Huerto no encontrado ${error}` })
   }
 })
 
@@ -480,11 +490,21 @@ app.get('/tech/calendario/:tecnico', async (req, res) => {
         clientsHistory.push({
           id: doc.id,
           name: `${clientData.nombre} ${clientData.apellido}`,
-          historial_estados_huertos: clientData.historial_estados_huertos,
+          historial_estados_huertos: clientData.historial_estados_huertos
         })
       }
     })
-
+    
+    clientsHistory.sort((a, b) => {
+      const nameA = a.name.toUpperCase()
+      const nameB = b.name.toUpperCase()
+      
+      if(nameA > nameB ) return 1
+      if(nameA < nameB ) return -1
+      return 0
+    })
+    
+    console.log(clientsHistory[0].historial_estados_huertos[0].fecha)
     const response = createClientObjects(clientsHistory)
     return res.status(200).json(response)
   } catch (error) {
@@ -492,6 +512,51 @@ app.get('/tech/calendario/:tecnico', async (req, res) => {
     res.status(500).json({ error: 'Error al obtener datos de los huertos', error })
   }
 })
+
+
+const getWeekForDate = (date, weeks) => {
+  const parsedDate = new Date(date);
+  for (const week of weeks) {
+    const start = new Date(week.start);
+    const end = new Date(week.end);
+    if (parsedDate >= start && parsedDate <= end) {
+      return week;
+    }
+  }
+  return null;
+};
+
+const createClientObjects = (data) => {
+  return data.map(client => {
+    // Crear un objeto vacío para los meses
+    const meses = Object.keys(weeksLeapYearStartToEnd).map(month => {
+      // Crear un array con las semanas del mes inicializadas a `null`
+      const monthWeeks = Array(weeksLeapYearStartToEnd[month].length).fill(null);
+
+      // Iterar por cada estado del historial del cliente
+      client.historial_estados_huertos.forEach(entry => {
+        // Iterar por las semanas del mes actual
+        for (let i = 0; i < weeksLeapYearStartToEnd[month].length; i++) {
+          const week = weeksLeapYearStartToEnd[month][i];
+          const weekRange = getWeekForDate(entry.fecha, weeksLeapYearStartToEnd[month]);
+
+          // Si la fecha corresponde a esta semana, guardar el estado y romper el ciclo
+          if (weekRange && entry.fecha >= week.start && entry.fecha <= week.end) {
+            monthWeeks[i] = {estado: entry.estado, atributos: entry.atributos};
+            break; // Salir del ciclo una vez se haya asignado el estado
+          }
+        }
+      });
+
+      return monthWeeks;
+    });
+
+    return {
+      name: client.name,
+      meses
+    };
+  });
+};
 
 app.post('/tech/register/client', async (req, res) => {
   const request = req.body
@@ -517,53 +582,5 @@ app.post('/tech/register/client', async (req, res) => {
     res.status(500).json({ message: 'Error al crear cliente', error })
   }
 })
-
-const getWeekForDate = (date, weeks) => {
-  const parsedDate = new Date(date)
-  for (const week of weeks) {
-    const start = new Date(week.start)
-    const end = new Date(week.end)
-    if (parsedDate >= start && parsedDate <= end) {
-      return week
-    }
-  }
-  return null
-}
-
-const createClientObjects = data => {
-  const year = new Date().getFullYear
-  const objSelected = year % 4 === 0 ? weeksLeapYearStartToEnd : weeksNonLeapYearStartToEnd
-
-  return data.map(client => {
-    // Crear un objeto vacío para los meses
-    const meses = Object.keys(objSelected).map(month => {
-      // Crear un array con las semanas del mes inicializadas a `null`
-      const monthWeeks = Array(objSelected[month].length).fill(null)
-
-      // Iterar por cada estado del historial del cliente
-      client.historial_estados_huertos.forEach(entry => {
-        // Iterar por las semanas del mes actual
-        for (let i = 0; i < objSelected[month].length; i++) {
-          const week = objSelected[month][i]
-          const weekRange = getWeekForDate(entry.fecha, objSelected[month])
-
-          // Si la fecha corresponde a esta semana, guardar el estado y romper el ciclo
-          if (weekRange && entry.fecha >= week.start && entry.fecha <= week.end) {
-            monthWeeks[i] = entry.estado
-            break // Salir del ciclo una vez se haya asignado el estado
-          }
-        }
-      })
-
-      return monthWeeks
-    })
-
-    return {
-      id: data.id,
-      name: client.name,
-      meses,
-    }
-  })
-}
 
 app.listen(app.get('port'))

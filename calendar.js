@@ -77,7 +77,7 @@ const weeksLeapYearStartToEnd = {
   ],
 }
 
-export const weeksNonLeapYearStartToEnd = {
+const weeksNonLeapYearStartToEnd = {
     enero: [
       { start: '2023-01-01T06:00:00.000Z', end: '2023-01-07T05:59:59.999Z' },
       { start: '2023-01-08T06:00:00.000Z', end: '2023-01-14T05:59:59.999Z' },
