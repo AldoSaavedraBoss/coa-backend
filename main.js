@@ -16,6 +16,8 @@ const {
   where,
   addDoc,
   updateDoc,
+  writeBatch,
+  arrayUnion
 } = require('firebase/firestore')
 // const { initializeFireabseApp, handleLogin, registerUser, getGardensByUserId } = require('./firebase')
 const verifyTokenMiddleware = require('./auth')
@@ -582,5 +584,38 @@ app.post('/tech/register/client', async (req, res) => {
     res.status(500).json({ message: 'Error al crear cliente', error })
   }
 })
+
+// Endpoint para actualizar el historial de estados de los huertos
+app.post('/tech/registrar/estados', async (req, res) => {
+  const newStatuses = req.body; // El array de nuevos estados que llega del front
+
+  try {
+      // Crear una operación por lotes
+      const batch = writeBatch(firestoreDB);
+
+      // Iterar sobre cada estado del array
+      newStatuses.forEach(({ id, attributes, state, date }) => {
+          const clientRef = doc(firestoreDB, 'usuarios', id);
+
+          // Actualizar el historial de estados de huertos en el documento del cliente
+          batch.update(clientRef, {
+              historial_estados_huertos: arrayUnion({
+                  atributos: attributes,
+                  estado: state,
+                  fecha: date
+              })
+          });
+      });
+
+      // Ejecutar la operación por lotes
+      await batch.commit();
+
+      res.status(200).json({ message: 'Historial de estados actualizado con éxito' });
+  } catch (error) {
+      console.error('Error al actualizar el historial de estados:', error);
+      res.status(500).json({ message: 'Error al actualizar el historial de estados', error });
+  }
+});
+
 
 app.listen(app.get('port'))
